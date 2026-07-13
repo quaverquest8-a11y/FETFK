@@ -111,7 +111,8 @@ export default function Window({
         const dx = e.clientX - dragStart.current.x;
         const dy = e.clientY - dragStart.current.y;
         const newX = Math.max(0, dragStart.current.winX + dx);
-        const newY = Math.max(0, dragStart.current.winY + dy);
+        const minTop = isMobile ? 64 : 100;
+        const newY = Math.max(minTop, dragStart.current.winY + dy);
         onMove(newX, newY);
       } else if (isResizing) {
         const dx = e.clientX - resizeStart.current.x;
@@ -137,7 +138,8 @@ export default function Window({
         const dx = touch.clientX - dragStart.current.x;
         const dy = touch.clientY - dragStart.current.y;
         const newX = Math.max(0, dragStart.current.winX + dx);
-        const newY = Math.max(0, dragStart.current.winY + dy);
+        const minTop = isMobile ? 64 : 100;
+        const newY = Math.max(minTop, dragStart.current.winY + dy);
         onMove(newX, newY);
       } else if (isResizing) {
         const touch = e.touches[0];
@@ -183,7 +185,7 @@ export default function Window({
   const style: React.CSSProperties = (window.isMaximized || isMobile)
     ? {
         position: 'absolute',
-        top: isMobile ? '52px' : '92px', // Space below upper compact system header
+        top: isMobile ? '72px' : '112px', // Adjusted down so upper parts fit well below the system top bar
         left: isMobile ? '8px' : '16px',
         right: isMobile ? '8px' : '16px',
         bottom: isMobile ? '76px' : '96px', // Space above bottom mobile-adapted taskbar

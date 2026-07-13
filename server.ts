@@ -14,6 +14,9 @@ async function startServer() {
     }
 
     try {
+      // Ensure SSL certificate issues don't block the proxy connection
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
       let formattedUrl = targetUrl;
       // Handle simple inputs like google.com
       if (!/^https?:\/\//i.test(formattedUrl)) {
@@ -48,17 +51,43 @@ async function startServer() {
           html = baseTag + html;
         }
 
-        // Script to intercept navigation clicks and proxy them
+        // Calculate absolute proxy URL to prevent `<base>` from hijacking relative paths
+        const host = req.get("host");
+        const protocol = req.protocol;
+        const proxyBaseUrl = `${protocol}://${host}/api/proxy`;
+
+        // Script to intercept navigation clicks and form submissions, routing them back through the proxy
         const injectionScript = `
           <script>
+            // Intercept anchor clicks
             document.addEventListener('click', (e) => {
               const link = e.target.closest('a');
               if (link && link.href) {
                 const targetHref = link.href;
                 if (targetHref.startsWith('http') || targetHref.startsWith('//')) {
                   e.preventDefault();
-                  // Update iframe URL through the proxy
-                  window.location.href = '/api/proxy?url=' + encodeURIComponent(targetHref);
+                  window.location.href = '${proxyBaseUrl}?url=' + encodeURIComponent(targetHref);
+                }
+              }
+            });
+
+            // Intercept search/form GET submissions
+            document.addEventListener('submit', (e) => {
+              const form = e.target.closest('form');
+              if (form) {
+                const method = (form.method || 'GET').toUpperCase();
+                if (method === 'GET') {
+                  e.preventDefault();
+                  const formData = new FormData(form);
+                  const params = new URLSearchParams();
+                  for (const [key, value] of formData.entries()) {
+                    params.append(key, value);
+                  }
+                  const action = form.getAttribute('action') || '';
+                  // Resolve action relative to document baseURI
+                  const resolvedAction = new URL(action, document.baseURI).href;
+                  const targetUrl = resolvedAction + (resolvedAction.includes('?') ? '&' : '?') + params.toString();
+                  window.location.href = '${proxyBaseUrl}?url=' + encodeURIComponent(targetUrl);
                 }
               }
             });
@@ -86,7 +115,7 @@ async function startServer() {
       console.error("Proxy error for URL:", targetUrl, error);
       res.status(500).send(`
         <div style="font-family: system-ui, sans-serif; padding: 2.5rem; color: #f87171; background: #0b0c10; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
-          <div style="width: 48px; height: 48px; border-radius: 50%; background: #ef4444/10; color: #ef4444; display: flex; justify-content: center; align-items: center; font-size: 24px; margin-bottom: 1rem; border: 2px solid #ef4444;">âš </div>
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: #ef4444/10; color: #ef4444; display: flex; justify-content: center; align-items: center; font-size: 24px; margin-bottom: 1rem; border: 2px solid #ef4444;">⚠️</div>
           <h2 style="margin-top: 0; font-size: 1.5rem; font-weight: 700; color: #e2e8f0;">Proxy Connection Failed</h2>
           <p style="color: #94a3b8; font-size: 0.875rem; max-width: 450px; line-height: 1.5;">AetherOS Secure Cloud Proxy could not reach the requested address: <strong style="color: #a5b4fc; word-break: break-all;">${targetUrl}</strong></p>
           <p style="color: #64748b; font-size: 0.75rem; margin-bottom: 1.5rem;">Reason: ${error.message || error}</p>
