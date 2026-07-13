@@ -1,0 +1,6 @@
+{
+  "name": "AetherOS",
+  "description": "A beautiful, fluid, glassmorphic desktop environment with persistent secure apps, secure file vault, custom code studio, notepad, and personal AI integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
